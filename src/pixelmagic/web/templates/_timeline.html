@@ -1,0 +1,35 @@
+{#- The step timeline of a scene. Reads `timeline` (seven items: label, state, href, here), `timeline_key` and `reopened`.
+    Done and current steps, and a next step with an href, are links; a waiting step is plain text. -#}
+{%- set words = {"done": "done", "current": "current step", "next": "next", "waiting": "waiting, not reachable yet"} -%}
+{%- set subs = {"done": "Reopen", "current": "Current step", "next": "Next up", "waiting": "Not yet"} -%}
+{#- `reopened` is the 1-based position of the finished step this page is on (0 when none): the yellow moves there and the later steps dim. -#}
+<nav class="tl-zone" aria-label="Scene steps">
+  {%- if scene_choices %}
+  {% include "_scene_chooser.html" %}
+  {%- endif %}
+  <ol class="tl" data-tl data-scene="{{ timeline_key|default('') }}"{% if reopened %} data-reopen="{{ reopened }}"{% endif %}>
+    {%- for step in timeline %}
+    {%- set n = loop.index %}
+    {%- set link = step.href %}
+    {%- set tag = "a" if link else "span" %}
+    <li class="tl-item{% if step.here %} here{% endif %}{% if reopened and n == reopened %} reopened{% endif %}{% if reopened and n > reopened %} after-reopen{% endif %}" data-n="{{ n }}" data-state="{{ step.state }}"{% if step.state == "done" and not (reopened and n >= reopened) %} data-fill="1"{% endif %}>
+      <{{ tag }} class="tl-hit"{% if link %} href="{{ step.href }}" aria-label="{{ step.label }}, {{ words[step.state] }}{% if step.state == 'done' %}. Reopen{% endif %}"{% endif %}{% if step.state == "current" %} aria-current="step"{% endif %}>
+        <span class="marker" aria-hidden="true"><span class="num">{{ n }}</span><svg class="check" viewBox="0 0 16 16"><path d="M3 8.5l3.5 3.5 6.5-7.5"/></svg></span>
+        <span class="tl-label"><span class="tl-name">{{ step.label }}</span><span class="tl-sub" aria-hidden="true">{{ "You are here" if step.here else subs[step.state] }}</span></span>
+        {%- if not link %}<span class="sr">, {{ words[step.state] }}</span>{% endif %}
+      </{{ tag }}>
+      <span class="conn" aria-hidden="true"></span>
+    </li>
+    {%- endfor %}
+  </ol>
+  {%- if reopened %}
+  <p class="tl-note" role="status">Editing this step. Later results may update.</p>
+  {%- endif %}
+  <div id="step-pop" class="step-pop" popover role="group" aria-label="Reopen a finished step">
+    <p data-pop-name></p>
+    <div class="acts">
+      <a class="btn" href="#" data-pop-go>Reopen this step</a>
+      <button class="btn quiet" type="button" popovertarget="step-pop" popovertargetaction="hide">Close</button>
+    </div>
+  </div>
+</nav>

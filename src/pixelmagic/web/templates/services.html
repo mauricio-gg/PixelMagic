@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Services{% endblock %}
+{% block scripts %}
+<script src="/static/services.js" defer></script>
+{%- endblock %}
+{% block nav_current %} aria-current="page"{% endblock %}
+{% block title_area %}
+<div class="hero">
+  <div>
+    <h1>Services</h1>
+    <p class="meta sub">Who draws for {% if project %}<strong>{{ project.name }}</strong>{% else %}this game{% endif %}, and the keys they need.</p>
+  </div>
+</div>
+{% endblock %}
+{% block body %}
+<div class="svc-page">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+  <symbol id="i-err" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></symbol>
+</svg>
+{% if override %}
+<p class="strip warn" role="status"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span>This server was started with <code>--service {{ override }}</code>, which wins over the choice saved here until PixelMagic is restarted.</span></p>
+{% endif %}
+{% if not project %}
+<p class="strip warn" role="status"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span>There is no game in this folder yet, so there is nothing to choose for. Keys can still be added.</span></p>
+{% endif %}
+<form id="choose" method="post" action="/services/choose"></form>
+<h2 id="who-h" class="sr">Who draws</h2>
+<ul class="panel-list" aria-labelledby="who-h">
+{% for row in rows %}
+  {%- set status = row.status %}
+  <li class="svc{% if row.chosen %} chosen{% endif %}" id="svc-{{ row.name }}">
+    <label class="svc-pick">
+      <input type="radio" name="service" value="{{ row.name }}" form="choose"{% if row.chosen %} checked{% endif %}>
+      <span class="mark" aria-hidden="true"></span>
+      <span><span class="nm">{{ row.display_name }}<span class="here">Drawing here</span></span><span class="tag">{{ row.tag }}</span></span>
+    </label>
+    <div class="svc-body">
+      <p class="stat {{ row.state }}">
+        <svg class="i" aria-hidden="true"><use href="#i-{{ 'err' if row.state == 'err' else 'check' if row.state == 'ok' else 'warn' }}"/></svg>
+        <span>{{ status.sentence }}
+        {%- if row.login and status.ready %}<span class="sub">PixelMagic never sees your password.</span>
+        {%- elif row.login %}<span class="sub">Open a terminal and run <code>codex login</code>, then press Check login.</span>
+        {%- elif row.link and not status.key_source %}<span class="sub"><a href="{{ row.link[1] }}" target="_blank" rel="noopener noreferrer">{{ row.link[0] }}</a> (opens in your browser).</span>
+        {%- elif status.key_source == "environment" %}<span class="sub">It wins over any key saved here. To change it, change the variable and restart PixelMagic.</span>
+        {%- elif status.key_source == "keychain" %}<span class="sub">It is never shown again.</span>
+        {%- endif %}</span>
+      </p>
+      {% if row.login or row.can_test or row.can_replace or row.can_remove %}
+      <div class="acts">
+        {% if row.login or row.can_test %}
+        <form method="post" action="/services/{{ row.name }}/test">
+          <button class="btn" type="submit">{% if row.login %}Check login{% elif row.result and row.result[0] == "err" %}Test again{% else %}Test key{% endif %}</button>
+        </form>
+        {% endif %}
+        {% if row.can_replace %}
+        <details class="replace">
+          <summary class="btn quiet">Replace key</summary>
+          {% with field_label = "Paste a new key" %}{% include "_key_field.html" %}{% endwith %}
+        </details>
+        {% endif %}
+        {% if row.can_remove %}
+        <details class="confirm">
+          <summary class="btn quiet">Remove</summary>
+          <div class="acts">
+            <form method="post" action="/services/{{ row.name }}/key/remove"><button class="btn danger" type="submit">Remove for good</button></form>
+            <button class="btn quiet" type="button" data-close>Keep it</button>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if row.result %}
+      <div class="result {{ row.result[0] }}" role="status">
+        <svg class="i" aria-hidden="true"><use href="#i-{{ 'err' if row.result[0] == 'err' else 'check' }}"/></svg>
+        <span>{{ row.result[1] }}</span>
+        {%- if row.offer_choose %}
+        <form method="post" action="/services/choose"><input type="hidden" name="service" value="{{ row.name }}"><button class="btn" type="submit">Draw with {{ row.display_name }}</button></form>
+        {%- endif %}
+      </div>
+      {% endif %}
+      {% if row.show_field %}
+        {% with field_label = "Paste your " ~ row.display_name ~ " key" if not row.rejected else "Paste a new key" %}{% include "_key_field.html" %}{% endwith %}
+      {% endif %}
+    </div>
+  </li>
+{% endfor %}
+</ul>
+<button class="btn" type="submit" form="choose" data-choose-submit>Use the selected service</button>
+<p class="meta svc-note">Your choice is saved for {% if project %}{{ project.name }}{% else %}this game{% endif %} only. Keys belong to this computer, so every game can use them. A key set in your environment wins over one saved here.</p>
+<p class="privacy">
+  <svg class="i" aria-hidden="true"><use href="#i-lock"/></svg>
+  <span><b>Your key goes only to its own service.</b> It is kept in your computer's keychain, never in the project folder, so it can't end up in your game's files or in git. PixelMagic never shows it again after you save it.</span>
+</p>
+</div>
+{% endblock %}

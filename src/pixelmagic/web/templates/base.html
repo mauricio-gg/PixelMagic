@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}PixelMagic{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="stylesheet" href="/static/pixelmagic.css">
+<script src="/static/pixelmagic.js" defer></script>
+{%- block scripts %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<header class="topbar">
+  <a class="wordmark" href="/" aria-label="PixelMagic home">PixelMagic<svg class="spark" viewBox="0 0 3 3" aria-hidden="true"><path d="M1 0h1v1h1v1H2v1H1V2H0V1h1z"/></svg></a>
+  {#- Optional context: project (the game), direction, crumb (this page). The last one given is the page itself. #}
+  {%- block crumbs %}
+  {%- set trail = [] %}
+  {%- if project %}{% set _ = trail.append((project.name, "/")) %}{% endif %}
+  {%- if direction %}{% set _ = trail.append((direction.name, "/directions/" ~ direction.name)) %}{% endif %}
+  {%- if crumb %}{% set _ = trail.append((crumb, None)) %}{% endif %}
+  <nav class="crumbs" aria-label="Breadcrumb">
+    {%- for name, href in trail %}
+    {%- if not loop.first %}<span class="sep" aria-hidden="true">/</span>{% endif %}
+    {%- if loop.last %}<span aria-current="page">{{ name }}</span>{% else %}<a href="{{ href }}">{{ name }}</a>{% endif %}
+    {%- endfor %}
+  </nav>
+  {%- endblock %}
+  <a class="btn quiet" href="/services" aria-label="Services"{% block nav_current %}{% endblock %}><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/></svg><span class="lbl-svc">Services</span></a>
+  {#- After Services, the right end is left free for the hosted slots (account menu, credits, job chip): ticket #195. #}
+</header>
+<div class="shell{% if timeline %} has-timeline{% endif %}">
+  {%- if timeline %}
+  {% include "_timeline.html" %}
+  {%- endif %}
+  <main class="content" id="main">
+    {% block title_area %}<h1>{% block heading %}{% endblock %}</h1>{% endblock %}
+    {% block body %}{% endblock %}
+  </main>
+  <footer class="foot">Local mode. Everything stays in your project folder, except keys, which live in your keychain.{% block footer %}{% endblock %}</footer>
+</div>
+</body>
+</html>

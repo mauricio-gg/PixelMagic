@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Cut props{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}<script src="/static/pixelcut.js" defer></script>{% endblock %}
+{%- block crumbs %}
+<nav class="crumbs" aria-label="Breadcrumb"><a href="/">{{ project.name }}</a><span class="sep" aria-hidden="true">/</span><a href="/directions/{{ direction.name }}">{{ direction.name }}</a><span class="sep" aria-hidden="true">/</span><a href="{{ generation_url }}">{{ picture.request.subject }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Cut props</span></nav>
+{%- endblock %}
+{% block body %}
+{#- The size step of a pixel cut. Nothing is decided here: the form posts a number or nothing, and the core finds, checks and refuses. -#}
+<div class="workspace pixelcut">
+  <div class="work"><div class="stage"><img class="art" src="{{ generation_url }}/image.png" alt="{{ picture.request.subject }}"></div></div>
+  <aside class="panel" aria-label="Cut props from pixel art">
+    <form class="panel-form" id="pixelcut-form" method="post" action="{{ action }}" data-working="Starting the cut" data-status="Reading the pixel grid.">
+    <div class="panel-body">
+      <section>
+        <h1 class="panel-title">Cut props from this pixel art</h1>
+        {% if picture.request.imported_from %}
+        <p class="meta">{{ picture.request.subject }} &middot; brought in from {{ picture.request.imported_from }}</p>
+        {% else %}
+        <p class="meta">{{ picture.request.subject }} &middot; drawn by {{ picture.request.service }}</p>
+        {% endif %}
+        <p class="meta">You draw a box round each prop and it is cut out with the picture's own pixels. Free, and it runs on this computer.</p>
+      </section>
+      <section>
+        <h2 class="panel-title">Pixel size</h2>
+        <div class="seg" role="radiogroup" aria-label="Where the pixel size comes from" id="size-mode">
+          <button type="button" role="radio" aria-checked="true" tabindex="0" data-value="find">Find it for me</button>
+          <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="type">I will type it</button>
+        </div>
+        <p class="hint" data-pane="find">PixelMagic reads how big each pixel of the art is. This takes a moment.</p>
+        <div class="sub" data-pane="type" hidden>
+          <label for="size">Picture pixels in one art pixel
+            <span class="size-row"><input id="size" name="size" type="number" min="1" step="any" placeholder="For example 6" disabled>
+            <button type="button" class="btn quiet" id="native">Already native: 1</button></span></label>
+          <p class="hint">Type <b>1</b> when the picture is already one pixel per art pixel, so nothing is shrunk.</p>
+        </div>
+      </section>
+    </div>
+    <div class="panel-foot">
+      <p class="foot-note">Free. No image service is used.</p>
+      <button class="btn primary lg" type="submit">Start cutting</button>
+    </div>
+    </form>
+  </aside>
+</div>
+{% endblock %}

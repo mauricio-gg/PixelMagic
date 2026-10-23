@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+.superpowers/
+.DS_Store
+.claude/
+graphify-out/
+segmenter/weights/

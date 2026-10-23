@@ -1,0 +1,9 @@
+{#- The paste field for one service's key. Never prefilled: a key is posted and forgotten. Expects `row` and `field_label`. #}
+<form class="key-field" method="post" action="/services/{{ row.name }}/key">
+  <label class="lab" for="k-{{ row.name }}">{{ field_label }}</label>
+  <div class="line">
+    <input id="k-{{ row.name }}" name="key" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste here" required aria-describedby="kh-{{ row.name }}"{% if row.rejected %} aria-invalid="true"{% endif %}>
+    <button class="btn{% if row.chosen %} primary{% endif %}" type="submit">Save key</button>
+  </div>
+  <p class="meta" id="kh-{{ row.name }}">Saved to your keychain. After that it is never shown again.</p>
+</form>

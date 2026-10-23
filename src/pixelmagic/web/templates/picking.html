@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Pick props{% endblock %}
+{% block body_class %}pick{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}<script src="/static/picking.js" defer></script>{% endblock %}
+{% block body %}
+{#- The pick-props workspace (step 4). Lookup, drawing and posting live in static/picking.js; what a click means, the 12 px guard and every refusal are the core's. -#}
+{% set noun = "prop" if to_redraw == 1 else "props" %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-ptr" viewBox="0 0 16 16"><path d="M3 2.5l9 5.5-4 1.2-2 3.8z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+  <symbol id="i-lasso" viewBox="0 0 16 16"><path d="M8 3c3.5 0 6 1.3 6 3.2S11.5 9.5 8 9.5 2 8.1 2 6.2 4.5 3 8 3zM6 10l-1 3 2 1"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M2.5 5.5h6.5a4 4 0 010 8H6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+  <symbol id="i-err" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5"/></symbol>
+</svg>
+<div class="workspace">
+  <div class="work tools">
+    <div class="tray" role="toolbar" aria-label="Picking tools">
+      <div class="seg" role="radiogroup" aria-label="Picking mode" id="modes">
+        <button class="mode" type="button" role="radio" aria-checked="true" data-value="pick" title="Pick an object"><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-ptr"/></svg>Pick</button>
+        <button class="mode" type="button" role="radio" aria-checked="false" data-value="add" title="Add a spot to the selected pick" aria-label="Add a spot"{% if not picks %} disabled{% endif %}><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Add<span class="keyhint" aria-hidden="true"></span></button>
+        <button class="mode" type="button" role="radio" aria-checked="false" data-value="remove" title="Remove a spot from the selected pick" aria-label="Remove a spot"{% if not picks %} disabled{% endif %}><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg>Remove<span class="keyhint" aria-hidden="true"></span></button>
+        <button class="mode" type="button" role="radio" aria-checked="false" data-value="lasso" title="Lasso an object made of several parts"><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-lasso"/></svg>Lasso<span class="keyhint" aria-hidden="true"></span></button>
+      </div>
+      <span class="vr" aria-hidden="true"></span>
+      <form method="post" action="{{ base }}/pick/undo" id="undo-form">
+        <button class="btn quiet" type="submit"{% if not can_undo %} disabled{% endif %}><svg class="i" aria-hidden="true"><use href="#i-undo"/></svg>Undo</button>
+      </form>
+      <span class="vr" aria-hidden="true"></span>
+      <div class="sizer" role="group" aria-label="Object size, for touch">
+        <button class="btn quiet" type="button" id="bigger" aria-label="Bigger object" disabled><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span class="lbl">Bigger</span></button>
+        <button class="btn quiet" type="button" id="smaller" aria-label="Smaller object" disabled><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg><span class="lbl">Smaller</span></button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage" data-base="{{ base }}" data-width="{{ width }}" data-height="{{ height }}"
+         data-selected="{{ selected or '' }}" data-selected-method="{{ 'lasso' if selected_by_lasso else 'other' }}">
+      <img class="art" id="picture" src="{{ picture_src }}" width="{{ width }}" height="{{ height }}" alt="The scene to pick props from">
+      {% for pick in picks %}
+      <img class="layer tint{% if pick.number == fresh %} fresh{% endif %}" alt="" src="{{ base }}/picks/{{ pick.number }}/tint.png">
+      {% endfor %}
+      <img class="layer" id="hover" alt="" hidden>
+      <svg class="layer trail" viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" aria-hidden="true"><polyline id="trail" points=""/></svg>
+      {% for tag in tags %}
+      <button class="otag" type="button" data-n="{{ tag.number }}" style="left:{{ tag.left }}%;top:{{ tag.top }}%" aria-label="Object {{ tag.number }}"><span class="c">{{ tag.number }}</span></button>
+      {% endfor %}
+      {% for pick in picks %}
+      <a class="otag picked{% if pick.number == selected %} sel{% endif %}{% if pick.number == fresh %} pulse{% endif %}" href="{{ base }}/pick?select={{ pick.number }}" data-label="{{ pick.label }}" style="left:{{ pick.left }}%;top:{{ pick.top }}%" aria-label="{{ pick.label }}, picked{% if pick.number == selected %}, selected{% endif %}"><span class="c">{{ pick.number }}</span></a>
+      {% endfor %}
+      <div id="nametag" aria-hidden="true"></div>
+    </div>
+    <p class="hint" id="hint" aria-live="polite"></p>
+    <p class="sr" id="live" role="status"></p>
+  </div>
+
+  <aside class="panel" aria-label="Picked props">
+    <div class="panel-body">
+      {% if found_list %}
+      <details class="fold" id="found-fold">
+        <summary><h2>Found objects</h2><span class="count">{{ found_list|length }} not picked</span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        <p class="foot-note">Too many to number on the picture. Arrow keys move between them and outline each one. Enter picks the outlined one.</p>
+        <div class="found" id="found" role="group" aria-label="Found objects not yet picked">
+          {% for item in found_list %}
+          <button class="found-item" type="button" data-n="{{ item.number }}" tabindex="{{ 0 if loop.first else -1 }}" aria-label="Object {{ item.number }}, {{ item.wide }} by {{ item.high }} pixels. Enter to pick">{{ item.number }}</button>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+      <details class="fold" id="picks-fold" open>
+        <summary><h2>Your picks</h2><span class="count">{{ picks|length }} picked</span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        {% if not found_any %}
+        <p class="foot-note"><span class="h-mouse">Nothing was found. Click an object to pick it.</span><span class="h-touch">Nothing was found. Tap an object to pick it.</span></p>
+        {% endif %}
+        {% if picks %}
+        <ul class="rows">
+          {% for pick in picks %}
+          <li data-number="{{ pick.number }}"{% if pick.notes|selectattr("problem")|list %} data-failed{% endif %} class="row{% if pick.number == fresh %} enter{% endif %}{% if just_redrawn %} settle{% endif %}{% if pick.number == selected %} selected{% endif %}"{% if just_redrawn %} style="animation-delay:{{ loop.index0 * 60 }}ms"{% endif %}>
+            <a class="pick-link" href="{{ base }}/pick?select={{ pick.number }}"{% if pick.number == selected %} aria-current="true"{% endif %}>
+              {% if pick.piece %}
+              <span class="thumb" style="background-image:url('{{ base }}/cutouts/{{ pick.piece }}/image.png');background-size:contain;background-position:center" role="img" aria-label="The redrawn piece"></span>
+              {% else %}
+              {% set bw = pick.box[2] - pick.box[0] %}{% set bh = pick.box[3] - pick.box[1] %}
+              {% set k = 48 / ([bw, bh]|max) %}
+              <span class="thumb" style="background-image:url('{{ picture_src }}');background-size:{{ '%.2f'|format(width * k) }}px {{ '%.2f'|format(height * k) }}px;background-position:{{ '%.2f'|format(-pick.box[0] * k + (48 - bw * k) / 2) }}px {{ '%.2f'|format(-pick.box[1] * k + (48 - bh * k) / 2) }}px" role="img" aria-label="A crop of the scene around this pick"></span>
+              {% endif %}
+              <span class="who">
+                <span class="name"><span class="n">{{ pick.number }}</span><span class="t">{{ pick.label }}</span></span>
+                <span class="meta">{% if pick.piece %}<span class="ready"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Redrawn</span>{% else %}Picked by {{ pick.how }}{% endif %}</span>
+                {% if pick.number == selected %}<span class="selmark"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Selected</span>{% endif %}
+              </span>
+            </a>
+            <div class="acts">
+              <form method="post" action="{{ base }}/picks/{{ pick.number }}/remove">
+                <button class="btn quiet" type="submit" aria-label="Remove {{ pick.label }} from picks">Remove</button>
+              </form>
+            </div>
+            {% for note in pick.notes %}
+            <p class="strip {{ 'bad' if note.problem else 'warn' }}"><svg class="i" aria-hidden="true"><use href="#i-{{ 'err' if note.problem else 'warn' }}"/></svg><span><strong>{{ "Problem." if note.problem else "Warning." }}</strong> {{ note.text }}</span></p>
+            {% endfor %}
+            {% if pick.stale %}
+            <div class="strip warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg>
+              <div><p><strong>Warning.</strong> Its outline changed, but its redrawn piece is unchanged.</p>
+                {% if not service %}<a class="btn quiet" href="/services">Choose an image service first</a>{% else %}
+                <form method="post" action="{{ base }}/redraw" data-working="Redrawing 1 prop" data-status="Drawing it again, then rebuilding its pixel grid.">
+                  <input type="hidden" name="only" value="{{ pick.number }}">
+                  <button class="btn quiet" type="submit">Redraw just this one with {{ draw_phrase(service) }}</button>
+                </form>{% endif %}</div></div>
+            {% endif %}
+            {% if not pick.piece %}
+            <details class="rename">
+              <summary>Rename</summary>
+              <form method="post" action="{{ base }}/picks/{{ pick.number }}/rename">
+                <input type="text" name="name" required aria-label="Name for {{ pick.label }}">
+                <button type="submit">Save name</button>
+              </form>
+            </details>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="foot-note">Nothing picked yet.</p>
+        {% endif %}
+        {% for note in other_notes %}
+        <p class="strip {{ 'bad' if note.problem else 'warn' }}"><svg class="i" aria-hidden="true"><use href="#i-{{ 'err' if note.problem else 'warn' }}"/></svg><span><strong>{{ "Problem." if note.problem else "Warning." }}</strong> {{ note.text }}</span></p>
+        {% endfor %}
+      </details>
+    </div>
+    <div class="panel-foot">
+      {% if all_redrawn %}
+      <form method="post" action="{{ continue_url }}">
+        <button class="btn primary lg" type="submit">Continue to Surfaces <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      </form>
+      {% if not service %}<a class="btn quiet" href="/services">Choose an image service first</a>{% else %}
+      <form method="post" action="{{ base }}/redraw" data-working="Redrawing {{ picks|length }} {{ 'prop' if picks|length == 1 else 'props' }}" data-status="Props are drawn in groups of five, then each is rebuilt on its own pixel grid.">
+        {% for pick in picks %}<input type="hidden" name="only" value="{{ pick.number }}">{% endfor %}
+        <button class="btn quiet" type="submit">Redraw again with {{ draw_phrase(service) }}</button>
+      </form>{% endif %}
+      {% elif not picks %}
+      <button class="btn primary lg" type="button" disabled>Pick something to redraw</button>
+      {% else %}
+      {% if not service %}<a class="btn primary lg" href="/services">Choose an image service first</a>{% else %}
+      <form method="post" action="{{ base }}/redraw" data-working="Redrawing {{ to_redraw }} {{ noun }}" data-status="Props are drawn in groups of five, then each is rebuilt on its own pixel grid.">
+        <p class="foot-note">Props are redrawn in groups of five.</p>
+        <button class="btn primary lg" type="submit">Redraw {{ to_redraw }} {{ noun }} with {{ draw_phrase(service) }}</button>
+      </form>
+      {% endif %}{% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

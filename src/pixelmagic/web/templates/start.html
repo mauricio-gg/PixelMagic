@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}New scene{% endblock %}
+{% block title_area %}{% endblock %}
+{% block body %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+</svg>
+<div class="workspace">
+  <div class="work">
+    <div class="stage blank"><p class="chip-on-canvas">Your picture will appear here.</p></div>
+  </div>
+  <aside class="panel" aria-label="New scene">
+    <div class="panel-body">
+      <section>
+        <h1 class="panel-title">New scene</h1>
+        <form id="prompt" method="post" action="/directions/{{ direction.name }}/generate"
+              data-working="Drawing the picture" data-status="Waiting for {{ display_name(service) if service else 'the image service' }}.">
+          <label for="subject">Describe it</label>
+          <textarea id="subject" name="subject" required rows="4"
+                    placeholder="A cosy wizard's den seen from the front, with a bed, a bookshelf and a round rug"></textarea>
+          <details>
+            <summary>More options</summary>
+            <label>What kind?
+              <select name="kind">
+                {% for kind in kinds %}<option value="{{ kind.value }}">{{ kind.value }}</option>{% endfor %}
+              </select></label>
+            <label>Background
+              <select name="background">
+                {% for choice in backgrounds %}<option value="{{ choice.value }}">{{ choice.value }}</option>{% endfor %}
+              </select></label>
+            <label>Size in pixels, square
+              <input type="number" name="size" min="1" value="1024"></label>
+          </details>
+        </form>
+      </section>
+      <section id="import">
+        <h2 class="panel-title">Or bring in a picture</h2>
+        <form method="post" action="/directions/{{ direction.name }}/import" enctype="multipart/form-data"
+              data-working="Bringing it in" data-status="Copying your picture into the project.">
+          <label for="picture">PNG, JPEG or WebP</label>
+          <input id="picture" type="file" name="picture" accept="image/png,image/jpeg,image/webp" required>
+          <button type="submit">Bring it in</button>
+        </form>
+      </section>
+    </div>
+    <div class="panel-foot">
+      {%- if not service %}
+      <a class="btn primary lg" href="/services">Choose an image service first</a>
+      {%- else %}
+      {%- if not readiness.ready %}
+      <div class="strip warn" id="nudge" role="status">
+        <svg class="i" aria-hidden="true"><use href="#i-warn"/></svg>
+        <p id="nudge-text">{{ readiness.nudge }}</p>
+        <a class="btn" href="/services">Open Services</a>
+      </div>
+      {%- else %}
+      <p class="foot-note">{{ display_name(service) }} draws one picture and then stops so you can look at it.</p>
+      {%- endif %}
+      <button class="btn primary lg" type="submit" form="prompt"{% if not readiness.ready %} disabled aria-describedby="nudge-text"{% endif %}>Draw with {{ draw_phrase(service) }}</button>
+      {%- endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

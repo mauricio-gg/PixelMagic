@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ headline }}{% endblock %}
+{% block heading %}{{ headline }}{% endblock %}
+{% block body %}
+{% if detail %}<p class="note">{{ detail }}</p>{% endif %}
+<p><a href="/">Back to the start</a></p>
+{% endblock %}

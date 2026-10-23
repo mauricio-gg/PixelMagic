@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Refine{% endblock %}
+{% block body_class %}refine{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}<script src="/static/refine.js" defer></script>{% endblock %}
+{% block body %}
+{#- The Refine workspace (step 6). The script only swaps Before and After and turns a click on a prop into its anchor's numbers; what gets refined and every refusal are the core's. -#}
+{% set base = "/directions/" ~ direction.name %}
+{% set report = scene.report if scene else none %}
+{% set failed = report and report.error_code %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+  <symbol id="i-err" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5"/></symbol>
+</svg>
+<div class="workspace">
+  <div class="work tools">
+    {% if scene %}
+    <div class="tray" role="toolbar" aria-label="Compare the scene">
+      <div class="seg" role="radiogroup" aria-label="Which picture to show" id="views">
+        <button type="button" role="radio" aria-checked="{{ 'false' if scene.refined else 'true' }}" data-value="before" title="The kept scene, as it went into the refiner">Before</button>
+        <button type="button" role="radio" aria-checked="{{ 'true' if scene.refined else 'false' }}" data-value="after"{% if not scene.refined %} disabled{% endif %} title="The refined scene">After</button>
+      </div>
+    </div>
+    <div class="stage" id="stage">
+      <img class="art" id="picture" draggable="false" src="{{ base }}/assets/{{ scene.name }}/source.png" alt="The kept scene, before refining">
+      {% if scene.refined %}
+      <img class="layer after" id="refined" alt="The refined scene" src="{{ scene.refined_url }}">
+      {% endif %}
+    </div>
+    <p class="hint">
+      {%- if scene.refined %}<span class="h-mouse">Click Before or After to compare the scene.</span><span class="h-touch">Tap Before or After to compare the scene.</span>
+      {%- else %}<span class="h-mouse">Refine the scene, then click After to see it.</span><span class="h-touch">Refine the scene, then tap After to see it.</span>{% endif -%}
+    </p>
+    {% else %}
+    <div class="stage blank"><span class="chip-on-canvas">No kept scene yet</span></div>
+    {% endif %}
+  </div>
+
+  <aside class="panel" aria-label="Refine the scene">
+    <div class="panel-body">
+      <h2>Refine the scene</h2>
+      {% if not scene %}
+      <p class="foot-note">There is no kept scene to refine.
+        {% if timeline %}Reopen the Keep scene step in the timeline and keep a picture as the scene first.
+        {% else %}<a href="{{ base }}/generate">Start a picture</a>, approve it and keep it as the scene first.{% endif %}</p>
+      {% else %}
+      <p>The kept scene is refined into pixel art with the house recipe: its own 24-colour palette, then a clean-up pass.</p>
+      {% endif %}
+      {% if rebuilt_count or recipe_count %}
+      {% set skipped = [] %}
+      {% if rebuilt_count %}{% set _ = skipped.append(rebuilt_count ~ " rebuilt " ~ ("prop" if rebuilt_count == 1 else "props")) %}{% endif %}
+      {% if recipe_count %}{% set _ = skipped.append(recipe_count ~ " recipe " ~ ("tile" if recipe_count == 1 else "tiles")) %}{% endif %}
+      <p class="foot-note">{{ skipped|join(" and ") }} {{ "is" if rebuilt_count + recipe_count == 1 else "are" }} already pixel art, so {{ "it is" if rebuilt_count + recipe_count == 1 else "they are" }} skipped here.</p>
+      {% endif %}
+      {% if stand_in %}
+      <p class="strip warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span><strong>Stand-in refiner.</strong> It copies the scene through unchanged, so the result is <strong>not real pixel art</strong>. Start the page with <code>--refiner cli</code> to use PixelRefiner itself.</span></p>
+      {% endif %}
+
+      {% if scene and failed %}
+      <p class="strip bad" role="status"><svg class="i" aria-hidden="true"><use href="#i-err"/></svg><span>
+        {%- if scene.pixelmagic_refusal %}<strong>PixelMagic did not send it to the refiner.</strong> {{ report.error_message }}<br>Set the pitch under More options, then refine it again.
+        {%- elif scene.wrong_size %}<strong>The refiner returned the wrong size, so PixelMagic did not keep it.</strong> {{ report.error_message }}
+        {%- else %}<strong>The refiner refused it ({{ report.error_code }}).</strong> {{ report.error_message }}{% endif -%}
+      </span></p>
+      {% elif scene and report %}
+      <p class="strip ok" role="status"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><strong>Refined.</strong> {{ report.route or "not run" }}, confidence {{ "%.2f"|format(report.confidence) }}, by {{ report.refiner }}.</span></p>
+      {% endif %}
+      {% for row in rows %}
+      {% if row.report and (row.report.warnings or (row.report.error_code and row is not sameas scene)) %}
+      <section class="field" aria-label="Receipt for {{ row.name }}">
+        <h3>{{ row.name }}</h3>
+        {% if row.report.error_code and row is not sameas scene %}
+        <p class="strip bad"><svg class="i" aria-hidden="true"><use href="#i-err"/></svg><span>
+          {%- if row.pixelmagic_refusal %}PixelMagic did not send it to the refiner: {{ row.report.error_message }}
+          {%- elif row.wrong_size %}The refiner returned the wrong size, so PixelMagic did not keep it: {{ row.report.error_message }}
+          {%- else %}The refiner refused it ({{ row.report.error_code }}): {{ row.report.error_message }}{% endif -%}
+        </span></p>
+        {% endif %}
+        {% for sentence in warning_sentences(row.report.warnings) %}
+        <p class="strip warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span>{{ sentence }}</span></p>
+        {% endfor %}
+        {% if row.attention %}
+        <p class="strip warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span>The pixel grid is uncertain, so check it. Set the scene pitch under More options.</span></p>
+        {% endif %}
+      </section>
+      {% endif %}
+      {% endfor %}
+
+      <details class="fold" id="more">
+        <summary><h2>More options</h2><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+
+        <section class="field" aria-labelledby="settings-h">
+          <h3 id="settings-h">Refiner settings</h3>
+          {% if view.options %}
+          <form method="post" action="{{ base }}/refine" data-working="Refining" data-status="The refiner is working on it.">
+            <label>Preset
+              <select name="preset">
+                <option value="">leave it alone</option>
+                {% for preset in view.options.presets %}<option value="{{ preset }}">{{ preset }}</option>{% endfor %}
+              </select></label>
+            {% for key, spec in view.options.quick.items() %}
+            <label>{{ key }}
+              {% if spec.get("values") %}
+              <select name="quick.{{ key }}">
+                <option value="">leave it alone</option>
+                {% for value in spec["values"] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}
+              </select>
+              {% else %}
+              <input type="text" name="quick.{{ key }}" placeholder="{{ spec.get('default', '') }}">
+              {% endif %}
+            </label>
+            {% endfor %}
+            {% for key, spec in view.options.advanced.items() %}
+            <label>{{ key }} ({{ spec.get("kind", "text") }})
+              <input type="text" name="advanced.{{ key }}" placeholder="{{ spec.get('default', '') }}"></label>
+            {% endfor %}
+            <label>Only this asset (leave empty for all of them)
+              <select name="asset">
+                <option value="">every asset</option>
+                {% for row in rows %}<option value="{{ row.name }}">{{ row.name }}</option>{% endfor %}
+              </select></label>
+            <button type="submit">Refine with these settings</button>
+          </form>
+          {% if view.options.palettes %}
+          <p class="foot-note">Palettes this refiner knows: {{ view.options.palettes|join(", ") }}.</p>
+          {% endif %}
+          {% elif view.turned_off %}
+          <p class="strip warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span>The real PixelRefiner is not turned on, so there are no settings to show. To turn it on, stop the page with Ctrl-C and start it again with <code>--refiner cli</code>.</span></p>
+          {% else %}
+          <p class="strip warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span>PixelMagic could not ask PixelRefiner what settings it accepts, so there are none to show: {{ view.problem }} If you install it now, stop the page with Ctrl-C and open it again: this answer is read once when the page starts.</span></p>
+          {% endif %}
+        </section>
+
+        {% if scene and scene.record.pitch is not none %}
+        <section class="field" aria-labelledby="pitch-h">
+          <h3 id="pitch-h">Scene pitch</h3>
+          <p class="foot-note">For {{ scene.name }}, one art pixel is <strong>{{ "%.2f"|format(scene.record.pitch) }}</strong> source pixels across ({{ scene.record.pitch_source.value }}).</p>
+          <form method="post" action="{{ base }}/refine/scene-pitch">
+            <input type="hidden" name="asset" value="{{ scene.name }}">
+            <label>Pitch ({{ pitch_bounds[0] }} to {{ pitch_bounds[1] }})
+              <input type="number" name="value" step="0.01" min="{{ pitch_bounds[0] }}" max="{{ pitch_bounds[1] }}" value="{{ scene.record.pitch }}"></label>
+            <button type="submit">Set the pitch</button>
+          </form>
+        </section>
+        {% endif %}
+
+        {% for row in rows if row.attention %}
+        <section class="field" aria-label="Pixel grid of {{ row.name }}">
+          <h3>Pixel grid of {{ row.name }}</h3>
+          {% if row.report.candidate_id %}<p class="foot-note">Last asked for {{ row.report.candidate_id }}.</p>{% endif %}
+          {% if row.report.grid_candidates %}
+          <table>
+            <tr><th>Cell</th><th>How it was found</th><th>Confidence</th></tr>
+            {% for grid in row.report.grid_candidates %}
+            <tr><td>{{ "%.1f"|format(grid.cell_w) }} &times; {{ "%.1f"|format(grid.cell_h) }}</td>
+                <td>{{ grid.method }}</td><td>{{ "%.2f"|format(grid.confidence) }}</td></tr>
+            {% endfor %}
+          </table>
+          {% endif %}
+        </section>
+        {% endfor %}
+
+        {% for row in rows if row.refined and row.record and row.record.anchor and row.record.target %}
+        {#- A prop: the refined picture is the thing to click. The click is scaled by the target, not by the file's pixel size, because a `scale` setting enlarges the file and the anchor is counted in art pixels. -#}
+        <section class="field" aria-label="Anchor of {{ row.name }}">
+          <h3>Anchor of {{ row.name }}</h3>
+          <form id="anchor-{{ row.name }}" method="post" action="{{ base }}/refine/anchor">
+            <input type="hidden" name="asset" value="{{ row.name }}">
+            <img class="preview" data-anchor-for="anchor-{{ row.name }}"
+                 data-target-w="{{ row.record.target[0] }}" data-target-h="{{ row.record.target[1] }}"
+                 title="Click where this prop stands on the ground"
+                 src="{{ row.refined_url }}" alt="{{ row.name }}, refined. Click where it stands.">
+            <p class="foot-note">Stands on ({{ row.record.anchor[0] }}, {{ row.record.anchor[1] }}) of
+              {{ row.record.target[0] }} &times; {{ row.record.target[1] }} art pixels{% if row.record.footprint %};
+              footprint {{ row.record.footprint[0] }} &times; {{ row.record.footprint[1] }} cells{% endif %}.
+              <span class="h-mouse">Click the picture where it stands, or type.</span><span class="h-touch">Tap the picture where it stands, or type.</span></p>
+            <label>x
+              <input type="number" name="x" min="0" max="{{ row.record.target[0] }}" value="{{ row.record.anchor[0] }}"></label>
+            <label>y
+              <input type="number" name="y" min="0" max="{{ row.record.target[1] }}" value="{{ row.record.anchor[1] }}"></label>
+            <button type="submit">Set the anchor</button>
+          </form>
+        </section>
+        {% endfor %}
+      </details>
+    </div>
+
+    <div class="panel-foot">
+      {% if scene and scene.refined %}
+      <a class="btn primary lg" href="{{ base }}/export">Continue to Export <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <form method="post" action="{{ base }}/refine" data-working="Refining the scene" data-status="The refiner is working on it.">
+        <button class="btn quiet" type="submit">Refine again</button>
+      </form>
+      {% elif scene %}
+      <form method="post" action="{{ base }}/refine" data-working="Refining the scene" data-status="The refiner is working on it.">
+        <button class="btn primary lg" type="submit">Refine scene</button>
+      </form>
+      {% else %}
+      <button class="btn primary lg" type="button" disabled>Refine scene</button>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

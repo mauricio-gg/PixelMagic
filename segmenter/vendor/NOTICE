@@ -1,0 +1,23 @@
+Vendored code: segmenter/vendor/sam2/
+
+This folder is the MLX port of SAM 2.1 (Segment Anything Model 2), used by the
+object finder (segmenter/src/sam_helper) to find objects on a picture.
+
+Credits
+  SAM 2 / SAM 2.1   Copyright Meta Platforms, Inc. and affiliates.
+                    https://github.com/facebookresearch/sam2
+  MLX port          by eisneim, https://github.com/eisneim/sam2.1_mlx
+                    folder src/sam2, commit 036f2d02a9069871fd2bf47109ff3b522cd222c4
+                    (2026-05-07)
+
+Licence: Apache License 2.0. The full text is in the file LICENSE next to this
+one (segmenter/vendor/LICENSE). The port's own repository states Apache-2.0 in
+its README but ships no LICENSE file, so the standard text is supplied here.
+
+The folder is copied unchanged: not one file was edited. It is vendored because
+the repository has no pyproject and is not on PyPI.
+
+The vendored code does `import cv2`. That name is answered by PixelMagic's own
+small stand-in, segmenter/src/cv2, not by OpenCV; OpenCV is not a dependency.
+The stand-in provides only resize; the vendored video code's blob-labelling call
+is not supported (the object finder never reaches it).

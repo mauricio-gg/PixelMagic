@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Clean up{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}<script src="/static/cleanup.js" defer></script>{% endblock %}
+{%- block crumbs %}
+<nav class="crumbs" aria-label="Breadcrumb"><a href="/">{{ project.name }}</a><span class="sep" aria-hidden="true">/</span><a href="/directions/{{ direction.name }}">{{ direction.name }}</a><span class="sep" aria-hidden="true">/</span><a href="{{ generation_url }}">{{ picture.request.subject }}</a><span class="sep" aria-hidden="true">/</span><span aria-current="page">Clean up</span></nav>
+{%- endblock %}
+{% block body %}
+{#- The settings and the last stored result. Nothing here decides what is sure or unsure: the flags come from the record the core wrote. -#}
+<div class="workspace cleanup">
+  <div class="work">
+    <div class="stage pair">
+      <figure class="orig"><img class="art" src="{{ generation_url }}/image.png" alt="The picture to clean up"><figcaption>Original</figcaption></figure>
+      <figure class="clean">
+        {% if record %}
+        <img class="art" src="{{ image_url }}" alt="The cleaned-up pixel art, {{ record.grid.native_size[0] }} by {{ record.grid.native_size[1] }} art pixels">
+        <figcaption>Clean &middot; {{ record.grid.native_size[0] }} &times; {{ record.grid.native_size[1] }}</figcaption>
+        {% else %}
+        <div class="ph">Press Clean up to see the result here.</div>
+        {% endif %}
+      </figure>
+    </div>
+  </div>
+
+  <aside class="panel" aria-label="Clean up">
+    <form class="panel-form" id="cleanup-form" method="post" action="{{ action }}" enctype="multipart/form-data" data-working="Cleaning up" data-status="Finding the pixel grid.">
+    <div class="panel-body">
+      <section>
+        <h1 class="panel-title">Clean up</h1>
+        {% if picture.request.imported_from %}
+        <p class="meta">{{ picture.request.subject }} &middot; brought in from {{ picture.request.imported_from }}</p>
+        {% else %}
+        <p class="meta">{{ picture.request.subject }} &middot; drawn by {{ picture.request.service }}</p>
+        {% endif %}
+        <p class="meta">Turns the picture into true pixel art. Free, and it runs on this computer.</p>
+      </section>
+
+      <section>
+        <label for="size" class="panel-title">Pixel size
+          <input id="size" name="size" type="number" min="1" step="any" value="{{ size_box }}" placeholder="Let PixelMagic find it"></label>
+        <p class="hint">How many picture pixels make one pixel of the art.</p>
+        <input type="hidden" name="found_size" value="{{ found_size }}">
+        {% if record %}
+          {% if record.size_source == "typed" %}
+        <p class="strip ok cu-found" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Cleaned at the size you typed.</span></p>
+          {% elif record.unsure %}
+        <p class="strip warn cu-found" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg><span>Not sure how big each pixel is in this picture. We used <b>{{ size_text }}</b>. If the result looks too blocky or too smudged, type a different number and clean up again.</span></p>
+          {% else %}
+        <p class="strip ok cu-found" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Each pixel is <b>{{ size_text }}</b> picture pixels wide.</span></p>
+          {% endif %}
+        {% endif %}
+      </section>
+
+      <section>
+        <h2 class="panel-title">Use this palette</h2>
+        <input type="hidden" name="palette" id="palette" value="{{ palette }}">
+        <div class="seg" role="radiogroup" aria-label="Where the colours come from" id="palette-choice">
+          <button type="button" role="radio" aria-checked="{{ 'true' if palette == 'auto' else 'false' }}" tabindex="{{ 0 if palette == 'auto' else -1 }}" data-value="auto">Pick for me</button>
+          <button type="button" role="radio" aria-checked="{{ 'true' if palette == 'file' else 'false' }}" tabindex="{{ 0 if palette == 'file' else -1 }}" data-value="file">From a file</button>
+          <button type="button" role="radio" aria-checked="{{ 'true' if palette == 'count' else 'false' }}" tabindex="{{ 0 if palette == 'count' else -1 }}" data-value="count">A number</button>
+        </div>
+        <div class="sub" data-pane="file"{% if palette != "file" %} hidden{% endif %}>
+          <label for="aseprite">An Aseprite file, for its colours <input id="aseprite" name="palette_file" type="file" accept=".aseprite,.ase"></label>
+          <p class="hint">Only the colours are used. With the right palette, colours come out exact.</p>
+          {% if record and record.palette_file %}
+          <p class="hint">Last used: {{ record.palette_file }}. Leave this empty to use its colours again, or choose another file.</p>
+          {% endif %}
+        </div>
+        <div class="sub" data-pane="count"{% if palette != "count" %} hidden{% endif %}>
+          <label for="count">How many colours <input id="count" name="count" type="number" min="2" max="64" value="{{ count }}"></label>
+        </div>
+        <p class="hint" data-pane="auto"{% if palette != "auto" %} hidden{% endif %}>Colours are picked from the picture.</p>
+      </section>
+
+      {% if record %}
+      <section>
+        <h2 class="panel-title">The result</h2>
+        <dl class="cu-facts">
+          <dt>Size</dt><dd>{{ record.grid.native_size[0] }} &times; {{ record.grid.native_size[1] }} art pixels</dd>
+          <dt>Colours</dt><dd>{{ record.colour_count }}<span class="cu-swatches" aria-hidden="true">{% for colour in record.shown_colours %}<i style="background:#{{ colour }}"></i>{% endfor %}</span></dd>
+          <dt>Saved as</dt><dd>cleaned.png<br>{% if has_aseprite %}cleaned.aseprite{% else %}No .aseprite was written.{% endif %}</dd>
+          <dt>In</dt><dd>{{ saved_in }}</dd>
+        </dl>
+        {% for note in record.notes %}
+        <p class="hint">{{ note }}</p>
+        {% endfor %}
+        {% if instant %}
+        <p class="hint">Same settings as before, so this was instant.</p>
+        {% endif %}
+      </section>
+      {% endif %}
+    </div>
+    <div class="panel-foot">
+      <p class="foot-note">Free. No image service is used.</p>
+      <button class="btn primary lg" type="submit">{{ "Clean up again" if record else "Clean up" }}</button>
+    </div>
+    </form>
+  </aside>
+</div>
+{% endblock %}

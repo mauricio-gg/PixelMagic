@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Surfaces{% endblock %}
+{% block body_class %}draw{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}{% if approved %}<script src="/static/surfaces.js" defer></script>{% endif %}{% endblock %}
+{% block body %}
+{#- The surface-drawing workspace (step 5). The script only draws and posts: the typed form is composed from what was drawn, and the kinds, the colours, the size a box needs and every refusal come from the core. -#}
+{% if not approved %}
+<p class="strip bad" role="status">This picture must be approved before floors and walls can be drawn on it. <a href="{{ generation_url }}">Back to the picture</a>.</p>
+{% else %}
+{#- The one-line example and the starting name that go with each kind; a kind without an entry gets no example and its own name. -#}
+{% set examples = {"plaster": "Soft painted walls.", "stone": "Cobbles and bathroom tiles.", "wood": "Planks and floorboards."} %}
+{% set names = {"plaster": "plaster wall", "stone": "stone floor", "wood": "wood floor"} %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-poly" viewBox="0 0 16 16"><path d="M2.5 12l2-7.5 5.5-2 3.5 4.5-2.5 6.5z"/></symbol>
+  <symbol id="i-box" viewBox="0 0 16 16"><rect x="2.5" y="4" width="11" height="8" rx="1.5" stroke-dasharray="2.5 2"/></symbol>
+  <symbol id="i-move" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12M8 2L6.3 3.7M8 2l1.7 1.7M8 14l-1.7-1.7M8 14l1.7-1.7M2 8l1.7-1.7M2 8l1.7 1.7M14 8l-1.7-1.7M14 8l-1.7 1.7"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M2.5 5.5h6.5a4 4 0 010 8H6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+  <symbol id="i-err" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5"/></symbol>
+</svg>
+<div class="workspace">
+  <div class="work tools">
+    <div class="tray" role="toolbar" aria-label="Drawing tools">
+      <div class="seg" role="radiogroup" aria-label="Drawing tool" id="tools">
+        <button type="button" role="radio" aria-checked="false" data-value="shape" title="Draw a rough outline of the surface"><svg class="i" aria-hidden="true"><use href="#i-poly"/></svg>Draw shape</button>
+        <button type="button" role="radio" aria-checked="false" data-value="box" title="Drag a box on a plain patch of the surface"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg>Colour box</button>
+        <button type="button" role="radio" aria-checked="false" data-value="move" title="Drag a corner to move it"><svg class="i" aria-hidden="true"><use href="#i-move"/></svg>Move corner</button>
+      </div>
+      <span class="vr" aria-hidden="true"></span>
+      <button class="btn quiet" type="button" id="undo" disabled><svg class="i" aria-hidden="true"><use href="#i-undo"/></svg>Undo</button>
+    </div>
+
+    <div class="stage" id="stage" data-width="{{ picture_width }}" data-height="{{ picture_height }}" data-min-box="{{ min_box_pixels }}"
+         data-colours-url="{{ colours_url }}" data-draw-url="{{ draw_url }}">
+      <img class="art" id="picture" draggable="false" src="{{ picture_url }}" width="{{ picture_width }}" height="{{ picture_height }}" alt="The scene to draw floors and walls on">
+      <svg class="layer" id="overlay" viewBox="0 0 {{ picture_width }} {{ picture_height }}" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div id="handles"></div>
+      <div id="caps" aria-hidden="true"></div>
+    </div>
+    <p class="hint" id="hint" aria-live="polite"></p>
+  </div>
+
+  <aside class="panel" aria-label="Surface details">
+    <div class="panel-body">
+      <h2>This surface</h2>
+      <div class="field">
+        <label class="lab" for="name">Name</label>
+        <input id="name" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <span class="legend" id="kind-label">Kind</span>
+        <div class="seg kinds" role="radiogroup" aria-labelledby="kind-label" id="kinds">
+          {% for kind in kinds %}
+          <button type="button" role="radio" aria-checked="false" data-value="{{ kind }}" data-example="{{ examples.get(kind, '') }}" data-name="{{ names.get(kind, kind) }}">{{ kind|capitalize }}</button>
+          {% endfor %}
+        </div>
+        <p class="foot-note" id="kind-example" aria-live="polite"></p>
+      </div>
+      <section class="field" aria-labelledby="where-h">
+        <h3 id="where-h">Where it goes</h3>
+        <ul class="rows geo" id="shapes"></ul>
+        <div class="boxline" id="boxline"></div>
+      </section>
+      <section class="field" aria-labelledby="colours-h">
+        <h3 id="colours-h">Colours</h3>
+        <div class="swatches" id="swatches" role="img" aria-label="Colours read from the box, dark to light" hidden></div>
+        <p class="foot-note" id="colours-note" aria-live="polite"></p>
+        <p class="strip warn" id="colours-error" role="status" hidden><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span></span></p>
+      </section>
+      <p class="strip bad" id="refusal" role="alert" hidden><svg class="i" aria-hidden="true"><use href="#i-err"/></svg><span><strong>Refused by the core.</strong> <span id="refusal-text"></span></span></p>
+    </div>
+    <div class="panel-foot">
+      <button class="btn primary lg" type="button" id="draw" disabled>Draw this surface</button>
+      <a class="btn primary lg" id="continue" href="{{ refine_url }}" hidden>Continue to Refine <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <details class="fold" id="drawn"{% if just_drawn %} open{% endif %}>
+        <summary><span class="legend">Surfaces already drawn</span><span class="count">{{ drawn|length }}</span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        {% if drawn %}
+        <ul class="rows drawn">
+          {% for surface in drawn %}
+          {% set bw = surface.box[2] - surface.box[0] %}{% set bh = surface.box[3] - surface.box[1] %}
+          {% set k = 48 / ([bw, bh]|max) %}
+          <li class="row{% if surface.name == just_drawn %} enter fresh{% endif %}">
+            <span class="thumb" style="background-image:url('{{ picture_url }}');background-size:{{ '%.2f'|format(picture_width * k) }}px {{ '%.2f'|format(picture_height * k) }}px;background-position:{{ '%.2f'|format(-surface.box[0] * k + (48 - bw * k) / 2) }}px {{ '%.2f'|format(-surface.box[1] * k + (48 - bh * k) / 2) }}px" role="img" aria-label="A crop of the scene at the {{ surface.text }} colour box"></span>
+            <span class="who">
+              <span class="name"><span class="t">{{ surface.text }}</span></span>
+              <span class="meta">{{ surface.kind|capitalize }}</span>
+              <span class="swatches" role="img" aria-label="Colours of the {{ surface.text }}">{% for shade in surface.shades %}<i style="background:{{ shade }}"></i>{% endfor %}</span>
+            </span>
+            <div class="acts">
+              <a class="btn quiet" href="{{ surface.edit_url }}" aria-label="Edit {{ surface.text }}">Edit</a>
+              <form method="post" action="{{ surface.remove_url }}" data-confirm="Remove {{ surface.text }}? Its 32 tiles and their assets are deleted.">
+                <button class="btn quiet" type="submit" aria-label="Remove {{ surface.text }}">Remove</button>
+              </form>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="foot-note">Nothing drawn yet.</p>
+        {% endif %}
+      </details>
+    </div>
+  </aside>
+</div>
+<script type="application/json" id="surfaces-geometry">{{ geometry_json|safe }}</script>
+{% endif %}
+{% endblock %}

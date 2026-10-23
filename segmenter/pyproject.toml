@@ -1,0 +1,32 @@
+[project]
+name = "pixelmagic-segmenter"
+version = "0.1.0"
+description = "The Segment Anything helper PixelMagic shells out to (ticket #112)"
+requires-python = ">=3.12"
+dependencies = [
+    "mlx>=0.32.3",
+    "numpy>=2.5.3",
+    "pillow>=12.3.0",
+    "safetensors>=0.8.0",
+    "huggingface-hub>=2.0.0",
+]
+
+[project.scripts]
+pixelmagic-segmenter = "sam_helper.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# The vendored MLX port (`vendor/sam2`, unchanged, see vendor/NOTICE) is shipped
+# as its own top-level package `sam2` next to `sam_helper`, so the helper imports
+# it as `import sam2` and no vendored file is edited. The vendored code also does
+# `import cv2`; `src/cv2` is PixelMagic's own stand-in for the few OpenCV calls it
+# makes (its docstring says so), shipped as a third top-level package.
+[tool.hatch.build.targets.wheel]
+packages = ["src/sam_helper", "src/cv2", "vendor/sam2"]
+
+# The Apache-2.0 text and credits for the vendored code travel with the wheel.
+[tool.hatch.build.targets.wheel.force-include]
+"vendor/LICENSE" = "sam2/LICENSE"
+"vendor/NOTICE" = "sam2/NOTICE"

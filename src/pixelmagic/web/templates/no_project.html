@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}No project here{% endblock %}
+{% block heading %}No project in this folder{% endblock %}
+{% block body %}
+<p>There is no <code>pixelmagic.json</code> in <code>{{ root }}</code>, so there is no game here yet. Make one with:</p>
+<pre><code>uv run pixelmagic --root {{ root }} project new "&lt;name&gt;"</code></pre>
+<p>Then reload this page.</p>
+{% endblock %}

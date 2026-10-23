@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Pick props{% endblock %}
+{% block body_class %}pick{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}<script src="/static/pixelcut_pick.js" defer></script>{% endblock %}
+{% block body %}
+{#- The pick-props workspace of a pixel cut (step 4). Drags and clicks are recorded and posted by static/pixelcut_pick.js; what a box means, the cut, the size sentence and every note are the core's own. -#}
+{% set noun = "prop" if picks|length == 1 else "props" %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-box" viewBox="0 0 16 16"><path d="M2.5 2.5h11v11h-11z" stroke-dasharray="2.5 2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M2.5 5.5h6.5a4 4 0 010 8H6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+  <symbol id="i-err" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5"/></symbol>
+</svg>
+<div class="workspace pixelcut">
+  <div class="work tools">
+    <div class="tray" role="toolbar" aria-label="Picking tools">
+      <div class="seg" role="radiogroup" aria-label="Picking mode" id="modes">
+        <button class="mode" type="button" role="radio" aria-checked="true" data-value="box" title="Drag a box round a prop"><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-box"/></svg>Box</button>
+        <button class="mode" type="button" role="radio" aria-checked="false" data-value="add" title="Add a spot to the selected pick" aria-label="Add a spot"{% if selected is none %} disabled{% endif %}><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Add<span class="keyhint" aria-hidden="true"></span></button>
+        <button class="mode" type="button" role="radio" aria-checked="false" data-value="remove" title="Remove a spot from the selected pick" aria-label="Remove a spot"{% if selected is none %} disabled{% endif %}><span class="sel-dot" aria-hidden="true"></span><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg>Remove<span class="keyhint" aria-hidden="true"></span></button>
+      </div>
+      <span class="vr" aria-hidden="true"></span>
+      <form method="post" action="{{ base }}/pick/undo" id="undo-form">
+        <button class="btn quiet" type="submit"{% if not can_undo %} disabled{% endif %}><svg class="i" aria-hidden="true"><use href="#i-undo"/></svg>Undo</button>
+      </form>
+    </div>
+    <div class="stage" id="stage" data-base="{{ base }}" data-width="{{ width }}" data-height="{{ height }}" data-selected="{{ selected if selected is not none else '' }}">
+      <img class="art" id="picture" draggable="false" src="{{ picture_src }}" width="{{ width }}" height="{{ height }}" alt="The picture to cut props from">
+      {% for pick in picks %}
+      <img class="layer tint{% if pick.number == fresh %} fresh{% endif %}" alt="" src="{{ base }}/picks/{{ pick.number }}/tint.png">
+      {% endfor %}
+      <div class="box drag" id="ghost" hidden></div>
+    </div>
+    <p class="hint" id="hint" aria-live="polite"></p>
+  </div>
+
+  <aside class="panel" aria-label="Picked props">
+    <div class="panel-body">
+      <section>
+        <h2 class="panel-title">Pixel size</h2>
+        {% if unsure %}
+        <p class="strip warn cu-found" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg><span>{{ unsure }}</span></p>
+        {% elif typed %}
+        <p class="strip ok cu-found" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Cut at the size you typed: <b>{{ size_text }}</b>{% if native %}, the picture is already native{% endif %}.</span></p>
+        {% else %}
+        <p class="strip ok cu-found" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Each pixel is <b>{{ size_text }}</b> picture pixels wide.</span></p>
+        {% endif %}
+        <a class="btn quiet" href="{{ size_url }}">Start again with another size</a>
+      </section>
+      <details class="fold" id="picks-fold" open>
+        <summary><h2>Your picks</h2><span class="count">{{ picks|length }} picked</span><svg class="i chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        {% if picks %}
+        <ul class="rows">
+          {% for pick in picks %}
+          {% set bw = pick.box[2] - pick.box[0] %}{% set bh = pick.box[3] - pick.box[1] %}
+          {% set k = 48 / ([bw, bh]|max) %}
+          <li data-number="{{ pick.number }}"{% if pick.notes|selectattr("problem")|list %} data-failed{% endif %} class="row{% if pick.number == selected %} selected{% endif %}">
+            <a class="pick-link" href="{{ base }}/pick?select={{ pick.number }}"{% if pick.number == selected %} aria-current="true"{% endif %}>
+              <span class="thumb" style="background-image:url('{{ picture_src }}');background-size:{{ '%.2f'|format(width * k) }}px {{ '%.2f'|format(height * k) }}px;background-position:{{ '%.2f'|format(-pick.box[0] * k + (48 - bw * k) / 2) }}px {{ '%.2f'|format(-pick.box[1] * k + (48 - bh * k) / 2) }}px" role="img" aria-label="A crop of the picture around this pick"></span>
+              <span class="who">
+                <span class="name"><span class="n">{{ pick.number }}</span><span class="t">{{ pick.label }}</span></span>
+                <span class="meta">Picked by {{ pick.how }}</span>
+                {% if pick.number == selected %}<span class="selmark"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Selected</span>{% endif %}
+              </span>
+            </a>
+            <div class="acts">
+              <form method="post" action="{{ base }}/picks/{{ pick.number }}/remove">
+                <button class="btn quiet" type="submit" aria-label="Remove {{ pick.label }} from picks">Remove</button>
+              </form>
+            </div>
+            {% for note in pick.notes %}
+            <p class="strip {{ 'bad' if note.problem else 'warn' }}"><svg class="i" aria-hidden="true"><use href="#i-{{ 'err' if note.problem else 'warn' }}"/></svg><span><strong>{{ "Problem." if note.problem else "Warning." }}</strong> {{ note.text }}</span></p>
+            {% endfor %}
+            {% if not pick.cut %}
+            <details class="rename">
+              <summary>Rename</summary>
+              <form method="post" action="{{ base }}/picks/{{ pick.number }}/rename">
+                <input type="text" name="name" required aria-label="Name for {{ pick.label }}">
+                <button type="submit">Save name</button>
+              </form>
+            </details>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="foot-note">Nothing picked yet. Drag a box round a prop.</p>
+        {% endif %}
+        {% for note in other_notes %}
+        <p class="strip {{ 'bad' if note.problem else 'warn' }}"><svg class="i" aria-hidden="true"><use href="#i-{{ 'err' if note.problem else 'warn' }}"/></svg><span><strong>{{ "Problem." if note.problem else "Warning." }}</strong> {{ note.text }}</span></p>
+        {% endfor %}
+      </details>
+    </div>
+    <div class="panel-foot">
+      {% if picks %}
+      <p class="foot-note">Free. Nothing is drawn or paid. Each prop is made of the picture's own pixels.</p>
+      {% endif %}
+      {% if picks %}
+      <form method="post" action="{{ base }}/cut" data-working="Cutting {{ picks|length }} {{ noun }}" data-status="Cutting each prop from the picture's own pixels.">
+        <button class="btn primary lg" type="submit">Cut {{ picks|length }} {{ noun }}</button>
+      </form>
+      {% else %}
+      <button class="btn primary lg" type="button" disabled>Pick something to cut</button>
+      {% endif %}
+      {% if any_cut %}
+      <form method="post" action="{{ continue_url }}">
+        <button class="btn quiet" type="submit">Continue to Surfaces <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      </form>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

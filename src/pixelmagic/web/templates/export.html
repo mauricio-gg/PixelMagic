@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Export{% endblock %}
+{% block body_class %}export{% endblock %}
+{% block title_area %}{% endblock %}
+{% block scripts %}<script src="/static/export.js" defer></script>{% endblock %}
+{% block body %}
+{#- The Export workspace (step 7). The room and the list are the core's preview; the script only hides and shows the three room pictures. -#}
+{% set base = "/directions/" ~ direction.name %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13zM8 6.5v3M8 11.5v.2"/></symbol>
+</svg>
+<div class="workspace">
+  <div class="work tools room">
+    {% if room %}
+    <div class="stage room" style="--w: {{ room.width }}; --h: {{ room.height }}">
+      <img class="art" data-layer="tiles" src="{{ room.tiles }}" alt="The room's floor tiles">
+      <img class="layer" data-layer="structure" src="{{ room.structure }}" alt="The room's structure: frame, beams and arches">
+      <img class="layer" data-layer="props" src="{{ room.props }}" alt="The room's props">
+      <div class="layers" role="group" aria-label="Room layers">
+        <button type="button" aria-pressed="true" data-layer="props"><svg class="i tk" aria-hidden="true"><use href="#i-check"/></svg>Props</button>
+        <button type="button" aria-pressed="true" data-layer="tiles"><svg class="i tk" aria-hidden="true"><use href="#i-check"/></svg>Floor tiles</button>
+        <button type="button" aria-pressed="true" data-layer="structure"><svg class="i tk" aria-hidden="true"><use href="#i-check"/></svg>Structure</button>
+      </div>
+    </div>
+    <p class="hint"><span class="h-mouse">Room preview. Click a layer to hide or show it.</span><span class="h-touch">Room preview. Tap a layer to hide or show it.</span></p>
+    {% elif scene %}
+    <div class="stage">
+      <img class="art" src="{{ base }}/assets/{{ scene }}/source.png" alt="The kept scene">
+    </div>
+    {% for sentence in room_notes %}<p class="hint">{{ sentence }}</p>{% endfor %}
+    {% else %}
+    <div class="stage blank"><span class="chip-on-canvas">No kept scene yet</span></div>
+    {% endif %}
+  </div>
+
+  <aside class="panel" aria-label="Export">
+    <div class="panel-body">
+      {% if written %}
+      <div class="done-block" role="status">
+        <div>
+          <h2>Bundle exported</h2>
+          <p class="meta">{{ written.files|length }} file{{ "" if written.files|length == 1 else "s" }} written to your project folder.</p>
+        </div>
+        <code class="path">{{ written.path }}</code>
+        {% if written.room_files or written.tilesets %}
+        <div class="guide">
+          <h3>Open in Aseprite</h3>
+          {% for name in written.room_files %}<p><code>{{ name }}</code> is in the bundle folder. Open it in Aseprite to polish the room.</p>{% endfor %}
+          {% if written.tilesets %}<p>The tile set{{ "" if written.tilesets|length == 1 else "s" }}: {% for name in written.tilesets %}<code>{{ name }}</code>{{ ", " if not loop.last }}{% endfor %}.</p>{% endif %}
+          <p class="foot-note">The room is a starting point. Edits you make in Aseprite stay there.</p>
+        </div>
+        {% endif %}
+        {% for sentence in notes %}<p class="foot-note">{{ sentence }}</p>{% endfor %}
+        <ul class="files" aria-label="Files written">
+          {% for name in written.files %}<li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>{{ name }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% else %}
+      <section aria-labelledby="bun-h">
+        <div class="panel-head"><h2 id="bun-h">In the bundle</h2><span class="count">{{ items|length }} item{{ "" if items|length == 1 else "s" }}</span></div>
+        {% if items %}
+        <p class="ready"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>{{ "Ready to export, with notes below" if notes else "All ready to export" }}</p>
+        <ul class="rows" style="margin-top: var(--s2)">
+          {% for item in items %}
+          <li class="row">
+            <img class="thumb" src="{{ item.thumb }}" alt="">
+            <div class="who"><div class="name"><span class="t">{{ item.name }}</span></div><div class="meta">{{ item.kind }} · {{ item.size }}</div></div>
+            <div class="acts"><span class="tick" role="img" aria-label="Ready"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></span></div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="foot-note">Nothing is ready to export.
+          {% if scene and timeline %}Reopen the Refine step in the timeline and refine the scene first.
+          {% elif scene %}<a href="{{ base }}/refine">Refine the scene</a> first.
+          {% elif timeline %}Reopen the Keep scene step in the timeline and keep a picture as the scene first.
+          {% else %}<a href="{{ base }}/generate">Start a picture</a>, approve it and keep it as the scene first.{% endif %}</p>
+        {% endif %}
+        {% for sentence in notes %}<p class="foot-note">{{ sentence }}</p>{% endfor %}
+      </section>
+      <section aria-labelledby="scale-h" class="field">
+        <h3 id="scale-h">Scale</h3>
+        <div class="always"><span>1x, the native size</span><span class="meta">Always included</span></div>
+        <label class="switch"><span>Also include 2x</span><input type="checkbox" name="scale" value="2" form="export-form"><span class="tr" aria-hidden="true"></span></label>
+        <p class="foot-note">The room and tile set files are built from the 1x size.</p>
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="panel-foot">
+      {% if written %}
+      <button class="btn exported lg fresh" type="button" aria-disabled="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Bundle exported</button>
+      <a class="btn quiet" href="{{ base }}/export">Export again</a>
+      {% else %}
+      <form id="export-form" method="post" action="{{ base }}/export" data-working="Exporting" data-status="Writing the bundle.">
+        <input type="hidden" name="scale" value="1">
+        <button class="btn primary lg" type="submit"{% if not items %} disabled{% endif %}>Export bundle</button>
+      </form>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

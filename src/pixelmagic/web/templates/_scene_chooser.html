@@ -1,0 +1,14 @@
+{#- The scene chooser of Refine and Export. Reads `scene_choices` (generation, asset, thumb, current) and `scene_return` ("refine" or "export"). Only drawn with two or more kept scenes. The current one carries a tick and the words "Following", never colour alone. -#}
+<details class="scene-pick">
+  <summary>Scene: {{ (scene_choices | selectattr("current") | first).asset }}</summary>
+  <form method="post" action="/directions/{{ direction.name }}/scene" class="scene-list">
+    <input type="hidden" name="return" value="{{ scene_return }}">
+    {%- for choice in scene_choices %}
+    <button class="scene-item{% if choice.current %} current{% endif %}" type="submit" name="generation" value="{{ choice.generation }}"{% if choice.current %} aria-current="true"{% endif %}>
+      <img src="{{ choice.thumb }}" alt="" width="40" height="40">
+      <span class="scene-name">{{ choice.asset }}</span>
+      <span class="scene-mark">{% if choice.current %}&#10003; Following{% endif %}</span>
+    </button>
+    {%- endfor %}
+  </form>
+</details>

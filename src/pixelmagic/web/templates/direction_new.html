@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}New art direction{% endblock %}
+{% block heading %}New art direction{% endblock %}
+{% block scripts %}{% if service %}<script src="/static/direction-new.js" defer></script>{% endif %}{% endblock %}
+{% block body %}
+<p class="meta">{% if then == "import" %}A picture needs an art direction to belong to, so describe the look first. Once it is made, you go straight on to bringing in your picture.{% elif then == "generate" %}A scene needs an art direction to belong to, so describe the look first. Once it is made, you go straight on to drawing your first scene.{% else %}A scene lives in an art direction, so describe the look first.{% endif %}</p>
+<form method="post" action="/directions">
+  <input type="hidden" name="then" value="{{ then or '' }}">
+  {% if service %}
+  <label>Name (leave empty and {{ display_name(service) }} will invent one)
+    <input type="text" name="name" id="direction-name"></label>
+  {% else %}
+  <label>Name
+    <input type="text" name="name" required></label>
+  {% endif %}
+  <label>What it should look like
+    <textarea name="style" required></textarea></label>
+  <label>Things to avoid, one per line
+    <textarea name="donts"></textarea></label>
+
+  <p class="meta">How many art pixels one tile is on a side. Tiles are always this size;
+    a prop's footprint is counted in it.</p>
+  <label>Cell size
+    <input type="number" name="cell_size" min="{{ cell_size_bounds[0] }}" max="{{ cell_size_bounds[1] }}"
+           value="{{ default_cell_size }}" style="min-width:5rem"></label>
+
+  {% if service %}
+  {#- With no name typed, the image service is asked for one, so the button says who. direction-new.js drops the service once a name is typed. #}
+  <button class="btn primary lg" type="submit" id="create" data-named="Create it"
+          data-unnamed="Create it, and ask {{ draw_phrase(service) }} for a name">Create it, and ask {{ draw_phrase(service) }} for a name</button>
+  {% else %}
+  <button class="btn primary lg" type="submit">Create it</button>
+  {% endif %}
+</form>
+{% endblock %}

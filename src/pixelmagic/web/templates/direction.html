@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ direction.name }}{% endblock %}
+{% block heading %}{{ direction.name }}{% endblock %}
+{% block body %}
+<p>{{ direction.style }}</p>
+{% if direction.donts %}<p>Avoiding: {{ direction.donts|join("; ") }}</p>{% endif %}
+<p>Cell size: {{ direction.cell_size }} art pixels a tile. Tiles are refined to exactly that; a prop's footprint is counted in it.</p>
+<p>{{ assets|length }} asset(s) &middot;
+  <a href="/directions/{{ direction.name }}/generate">Draw something</a> &middot;
+  <a href="/directions/{{ direction.name }}/refine">Turn pieces into pixel art</a> &middot;
+  <a href="/directions/{{ direction.name }}/export">Export a bundle</a></p>
+
+<h2>Bring in a picture</h2>
+<form id="import" method="post" action="/directions/{{ direction.name }}/import" enctype="multipart/form-data">
+  <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required>
+  <button type="submit">Bring it in</button>
+</form>
+
+<h2>Rename</h2>
+<form method="post" action="/directions/{{ direction.name }}/rename">
+  <input type="text" name="name" value="{{ direction.name }}">
+  <button type="submit">Rename</button>
+</form>
+
+<h2>Pictures</h2>
+{% if generations %}
+<table>
+<tr><th>When</th><th>What</th><th>Kind</th><th>Verdict</th></tr>
+{% for row in generations %}
+<tr>
+  <td><a href="/directions/{{ direction.name }}/generations/{{ row.id }}">{{ row.id }}</a></td>
+  <td>{{ row.subject }}</td><td>{{ row.kind }}</td><td>{{ row.status }}</td>
+</tr>
+{% endfor %}
+</table>
+{% else %}<p>Nothing drawn yet.</p>{% endif %}
+{% endblock %}

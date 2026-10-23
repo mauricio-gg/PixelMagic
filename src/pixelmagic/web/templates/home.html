@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% macro count(n, word) %}{{ n }} {{ word }}{{ "" if n == 1 else "s" }}{% endmacro %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block body_class %}home{% endblock %}
+{% block title_area %}
+<div class="hero">
+  <div>
+    <h1>{{ project.name }}</h1>
+    <p class="meta sub">{{ count(cards|length, "art direction") }} in this folder</p>
+  </div>
+  {%- if cards %}
+  <div class="acts">
+    <a class="btn soft" href="{{ import_href }}">Bring in a picture</a>
+    <a class="btn primary lg" href="{{ new_scene_href }}"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>New scene</a>
+  </div>
+  {%- endif %}
+</div>
+{% endblock %}
+{% block body %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-plus" viewBox="0 0 18 18"><path d="M9 3.5v11M3.5 9h11"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 18 18"><path d="M3.5 9h11M10 4.5L14.5 9 10 13.5"/></symbol>
+</svg>
+{% if cards %}
+{% set lead = cards[0] %}
+<div class="games{% if cards|length == 1 %} solo{% endif %}">
+  {%- if lead.picture %}
+  <div class="scene-glow" aria-hidden="true"><img src="{{ lead.picture }}" alt=""></div>
+  {%- endif %}
+  {%- set s = lead.summary %}
+  <a class="lead game-in" href="/directions/{{ s.name }}" style="--i:0" title="{{ s.name }}" aria-label="Open art direction {{ s.name }}.{% if s.latest_subject %} Latest scene: {{ s.latest_subject }}.{% endif %} Edited {{ lead.edited }}.">
+    {%- if lead.picture %}
+    <img src="{{ lead.picture }}" alt="Latest scene of {{ s.name }}{% if s.latest_subject %}: {{ s.latest_subject }}{% endif %}">
+    {%- else %}
+    <div class="texture" role="img" aria-label="No scene picture yet"><span>No picture yet</span></div>
+    {%- endif %}
+    {%- if s.latest_scene %}
+    <span class="latest"><span class="chip">Latest scene{% if s.latest_subject %} · {{ s.latest_subject }}{% endif %}</span></span>
+    {%- endif %}
+    <span class="cover">
+      <span>
+        <h2>{{ s.name }}</h2>
+        <p class="meta" style="color:var(--text)">{{ count(s.scene_count, "scene") }} · edited {{ lead.edited }}</p>
+        <span class="dirs meta"><span>{{ s.cell_size }} px</span><span>{{ count(s.asset_count, "asset") }}</span></span>
+      </span>
+      <span class="go">Open art direction <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+    </span>
+  </a>
+  {%- for card in cards[1:] %}
+  {%- set s = card.summary %}
+  <a class="tile game-in" href="/directions/{{ s.name }}" style="--i:{{ loop.index }}" title="{{ s.name }}">
+    {%- if card.picture %}
+    <img class="thumbpic" src="{{ card.picture }}" alt="Latest scene of {{ s.name }}">
+    {%- else %}
+    <div class="texture" role="img" aria-label="No scene picture yet"><span>No picture yet</span></div>
+    {%- endif %}
+    <div class="body">
+      <h3>{{ s.name }}</h3>
+      <p class="meta">{{ count(s.scene_count, "scene") }} · edited {{ card.edited }}</p>
+      <span class="dirs meta"><span>{{ s.cell_size }} px</span><span>{{ count(s.asset_count, "asset") }}</span></span>
+      <span class="go">Open art direction <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+    </div>
+  </a>
+  {%- endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="pic" aria-hidden="true"></div>
+  <h2>Make your first scene</h2>
+  <p>Describe a room, or bring in a picture. PixelMagic does the rest, one step at a time.</p>
+  <a class="btn primary lg" href="{{ new_scene_href }}"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>New scene</a>
+</div>
+<div class="newtile">
+  <div class="t">
+    <span class="plus" aria-hidden="true"><svg class="i"><use href="#i-plus"/></svg></span>
+    <div><h3>Start something new</h3><p>A new art direction, or a picture you already have.</p></div>
+  </div>
+  <div class="acts"><a class="btn soft" href="/new-direction">New art direction</a><a class="btn soft" href="{{ import_href }}">Bring in a picture</a></div>
+</div>
+{% endif %}
+{% for name in broken %}
+<p class="note">{{ name }} has a direction.json that will not read back, so it is not shown.</p>
+{% endfor %}
+{% endblock %}
+{% block footer %} {% if service %}Drawing with <strong>{{ display_name(service) }}</strong>.{% else %}No image service chosen.{% endif %}{% if planned %} Not built yet: {% for name, ticket in planned %}{{ name }} (ticket {{ ticket }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endblock %}

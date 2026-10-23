@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ record.request.subject }}{% endblock %}
+{% block title_area %}{% endblock %}
+{% block body %}
+{% set base = "/directions/" ~ direction.name ~ "/generations/" ~ record.request.id %}
+<div class="workspace">
+  <div class="work">
+    <div class="stage"><img class="art" src="{{ base }}/image.png" alt="{{ record.request.subject }}"></div>
+  </div>
+  <aside class="panel" aria-label="This picture">
+    <div class="panel-body">
+      <section>
+        <h1 class="panel-title">{{ record.request.subject }}</h1>
+        {% if record.request.imported_from %}
+        <p class="meta">{{ record.request.kind.value }} &middot; brought in from {{ record.request.imported_from }} &middot; {{ record.review.status.value }}</p>
+        {% else %}
+        <p class="meta">{{ record.request.kind.value }} &middot; {{ record.request.background.value }} background &middot; drawn by {{ record.request.service }} &middot; {{ record.review.status.value }}</p>
+        {% endif %}
+        {% if record.request.parent_id %}
+        <p class="meta">Redrawn from <a href="/directions/{{ direction.name }}/generations/{{ record.request.parent_id }}">the earlier picture</a>.</p>
+        {% endif %}
+      </section>
+
+      {% if pending %}
+      <section>
+        <label class="check-label"><input type="checkbox" name="keep_reference" value="1" form="main-action" checked>
+          Use it as the style for the next pictures</label>
+      </section>
+      <section>
+        <h2 class="panel-title">Not quite?</h2>
+        {% if not service %}
+        <a class="btn" href="/services">Choose an image service first</a>
+        {% else %}
+        <form method="post" action="{{ base }}/reject" data-working="Drawing another picture" data-status="Waiting for {{ display_name(service) }}.">
+          <label for="feedback">What should change?</label>
+          <input id="feedback" type="text" name="feedback">
+          <button type="submit">Redraw with {{ draw_phrase(service) }}</button>
+        </form>
+        {% endif %}
+      </section>
+      {% elif approved %}
+        {% if scene_asset %}
+      <section>
+        <p class="strip ok" role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Kept as {{ scene_asset }}</span></p>
+        <details class="rename">
+          <summary>Rename</summary>
+          <form method="post" action="{{ base }}/rename-scene">
+            <input type="text" name="name" value="{{ scene_asset }}" required aria-label="New name for {{ scene_asset }}">
+            <button type="submit">Save name</button>
+          </form>
+        </details>
+      </section>
+        {% endif %}
+      <section>
+        {% if is_reference %}
+        <p class="meta">This picture is a style reference.</p>
+        {% else %}
+        <form method="post" action="{{ base }}/keep-reference">
+          <button type="submit">Keep as reference</button>
+        </form>
+        {% endif %}
+      </section>
+      <section>
+        <h2 class="panel-title">Already pixel art?</h2>
+        <p class="meta">Cut the props straight out of this picture's own pixels. Free, runs on this computer, no image service.</p>
+        <a class="btn" href="{{ base }}/pixel-cut">Cut props from this pixel art</a>
+        {% if pixel_cut_href %}
+        <a class="btn" href="{{ pixel_cut_href }}">Continue the pixel cut</a>
+        {% endif %}
+      </section>
+      <section>
+        <a class="btn" href="{{ base }}/surfaces">Draw floors and walls</a>
+      </section>
+      {% else %}
+      <section>
+        <p class="strip bad">Turned down{% if record.review.feedback %}: {{ record.review.feedback }}{% endif %}.</p>
+      </section>
+      {% endif %}
+
+      <section>
+        <a class="btn" href="{{ base }}/cleanup">Clean up</a>
+      </section>
+
+      {% if not record.request.imported_from %}
+      <details>
+        <summary>The words that were sent</summary>
+        <pre>{{ record.request.prompt }}</pre>
+      </details>
+      {% endif %}
+    </div>
+    <div class="panel-foot">
+      {% if pending %}
+      <form id="main-action" method="post" action="{{ base }}/approve">
+        <button class="btn primary lg" type="submit">Approve</button>
+      </form>
+      {% elif approved and not scene_asset %}
+      <form method="post" action="{{ base }}/keep-scene" data-working="Keeping the scene" data-status="Fitting the picture to the scene's pixel size.">
+        <label for="scene-name">Scene name</label>
+        <input id="scene-name" type="text" name="name" value="{{ proposed_name }}" required>
+        <button class="btn primary lg" type="submit">Keep as scene</button>
+      </form>
+      {% elif approved and suggest_href %}
+      <p class="foot-note">Not pixel art yet? Pick objects, then redraw them with an image service (paid).</p>
+      <a class="btn primary lg" href="{{ suggest_href }}">Continue to Pick props</a>
+      {% elif approved %}
+      <form method="post" action="{{ base }}/suggest" data-working="Finding the objects" data-status="Looking for things on the picture.">
+        <p class="foot-note">Not pixel art yet? Pick objects, then redraw them with an image service (paid). Finding the objects can take a minute.</p>
+        <button class="btn primary lg" type="submit">Continue to Pick props</button>
+      </form>
+      {% elif next_attempt %}
+      <a class="btn primary lg" href="/directions/{{ direction.name }}/generations/{{ next_attempt }}">See the redraw</a>
+      {% else %}
+      <a class="btn primary lg" href="/directions/{{ direction.name }}/generate">Back to Start</a>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}
