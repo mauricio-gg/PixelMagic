@@ -8,7 +8,7 @@ dependencies = [
     # which is why the floor above is not 2.7 any more; it also brings starlette,
     # uvicorn and python-multipart, which the web page already declares for itself.
     "pydantic>=2.12",
-    "pillow>=12.1",
+    "pillow>=13.0.0",
     "numpy>=1.26",
     "scipy>=1.13",
     "typer>=0.12",
